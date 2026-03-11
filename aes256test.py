@@ -26,5 +26,26 @@ class Test(unittest.TestCase):
         inv_sub_bytes(state)
         self.assertEqual(state, original)
 
+    # после сдвига и обратного сдвига должна получиться исходная матрица
+    def test_shift_rows_inv(self):
+        state = [[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]]
+        original = [row[:] for row in state]
+        shift_rows(state)
+        inv_shift_rows(state)
+        self.assertEqual(state, original)
+
+    def test_mix_columns_inv(self):
+        # тестовый вектор из спецификации
+        state = [
+            [0xdb, 0x13, 0x53, 0x45],
+            [0xf2, 0x0a, 0x22, 0x5c],
+            [0x01, 0x01, 0x01, 0x01],
+            [0x89, 0x89, 0x89, 0x89]
+        ]
+        original = [row[:] for row in state]
+        mix_columns(state)
+        inv_mix_columns(state)
+        self.assertEqual(state, original)
+
 if __name__ == '__main__':
     unittest.main()

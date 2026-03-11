@@ -67,6 +67,83 @@ def print_state(state, title="Состояние"):
         row_bytes = [f"{state[row][col]:02x}" for col in range(4)]
         print(" ".join(row_bytes))
 
+"""
+сдвиги нужны, чтобы разрушить структуру столбцов, 
+байты из одного столбца в операциях будут попадать в разные столбцы
+таким образом после нескольких раундов каждый выходной байт
+будет зависеть от ВСЕХ входных
+"""
+# циклический сдвиг строк
+def shift_rows(state):
+    # строка 1 сдвиг на 1
+    state[1][0], state[1][1], state[1][2], state[1][3] = \
+        state[1][1], state[1][2], state[1][3], state[1][0]
+    # строка 2 сдвиг на 2
+    state[2][0], state[2][1], state[2][2], state[2][3] = \
+        state[2][2], state[2][3], state[2][0], state[2][1]
+    # строка 3 сдвиг на 3
+    state[3][0], state[3][1], state[3][2], state[3][3] = \
+        state[3][3], state[3][0], state[3][1], state[3][2]
+    return state
+
+# соответственно обратный сдвиг
+def inv_shift_rows(state):
+    state[1][0], state[1][1], state[1][2], state[1][3] = \
+        state[1][3], state[1][0], state[1][1], state[1][2]
+    state[2][0], state[2][1], state[2][2], state[2][3] = \
+        state[2][2], state[2][3], state[2][0], state[2][1]
+    state[3][0], state[3][1], state[3][2], state[3][3] = \
+        state[3][1], state[3][2], state[3][3], state[3][0]
+    return state
+
 # xor двух строк
 def xor_bytes(a, b):
     return bytes(x ^ y for x, y in zip(a, b))
+
+# умножение в поле Галуа
+def galois_mul(a, b):
+    p = 0
+    for _ in range(8):
+        if b & 1:
+            p ^= a
+        hi = a & 0x80
+        a <<= 1
+        if hi:
+            a ^= 0x1b
+        b >>= 1
+    return p & 0xFF
+
+# перемешивание столбцов
+def mix_columns(state):
+    for col in range(4):
+        s0 = state[0][col]
+        s1 = state[1][col]
+        s2 = state[2][col]
+        s3 = state[3][col]
+
+        state[0][col] = galois_mul(s0, 2) ^ galois_mul(s1, 3) ^ s2 ^ s3
+        state[1][col] = s0 ^ galois_mul(s1, 2) ^ galois_mul(s2, 3) ^ s3
+        state[2][col] = s0 ^ s1 ^ galois_mul(s2, 2) ^ galois_mul(s3, 3)
+        state[3][col] = galois_mul(s0, 3) ^ s1 ^ s2 ^ galois_mul(s3, 2)
+    return state
+
+# и обратное перемешивание
+def inv_mix_columns(state):
+    for col in range(4):
+        s0 = state[0][col]
+        s1 = state[1][col]
+        s2 = state[2][col]
+        s3 = state[3][col]
+
+        state[0][col] = galois_mul(s0, 14) ^ galois_mul(s1, 11) ^ galois_mul(s2, 13) ^ galois_mul(s3, 9)
+        state[1][col] = galois_mul(s0, 9) ^ galois_mul(s1, 14) ^ galois_mul(s2, 11) ^ galois_mul(s3, 13)
+        state[2][col] = galois_mul(s0, 13) ^ galois_mul(s1, 9) ^ galois_mul(s2, 14) ^ galois_mul(s3, 11)
+        state[3][col] = galois_mul(s0, 11) ^ galois_mul(s1, 13) ^ galois_mul(s2, 9) ^ galois_mul(s3, 14)
+    return state
+
+# xor с раундовым ключом
+def add_round_key(state, round_key):
+    for i in range(4):
+        for j in range(4):
+            state[i][j] ^= round_key[i][j]
+    return state
