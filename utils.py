@@ -100,8 +100,12 @@ def inv_shift_rows(state):
 def xor_bytes(a, b):
     return bytes(x ^ y for x, y in zip(a, b))
 
-# умножение в поле Галуа
+
 def galois_mul(a, b):
+    """умножение в поле Галуа, начинаем с 0 и делаем 8 раз (по одному на каждый бит b),
+    если последний бит b = 1, то добавляем a к результату (XOR) и проверяем, не выйдет ли a за 8 бит при сдвиге,
+    сдвигаем a влево (умножаем на 2), если был выход за границу, применяем специальный полином,
+    переходим к следующему биту b, возвращаем результат"""
     p = 0
     for _ in range(8):
         if b & 1:
@@ -147,3 +151,47 @@ def add_round_key(state, round_key):
         for j in range(4):
             state[i][j] ^= round_key[i][j]
     return state
+
+
+# собственно шифрование одного блока 16 байт
+def encrypt_block(block, round_keys):
+    state = bytes_to_state(block)
+
+    # # первый раунд - xor с первым ключом
+    add_round_key(state, round_keys[0])
+
+    # 13 основных раундов
+    for round_num in range(1, 14):
+        sub_bytes(state)
+        shift_rows(state)
+        mix_columns(state)
+        add_round_key(state, round_keys[round_num])
+
+    # последний раунд (без MixColumns)
+    sub_bytes(state)
+    shift_rows(state)
+    add_round_key(state, round_keys[14])
+
+    # обратно в байты
+    return state_to_bytes(state)
+
+
+def decrypt_block(block, round_keys):
+    state = bytes_to_state(block)
+
+    # начинаем с последнего ключа
+    add_round_key(state, round_keys[14])
+
+    # идём в обратном порядке
+    for round_num in range(13, 0, -1):
+        inv_shift_rows(state)
+        inv_sub_bytes(state)
+        add_round_key(state, round_keys[round_num])
+        inv_mix_columns(state)
+
+    # финальный раунд
+    inv_shift_rows(state)
+    inv_sub_bytes(state)
+    add_round_key(state, round_keys[0])
+
+    return state_to_bytes(state)
