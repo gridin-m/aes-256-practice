@@ -142,7 +142,7 @@ def main():
         try:
             if choice == '1':
                 encrypt_file(in_file, out_file, key)
-            elif choice == '2':
+            else:
                 decrypt_file(in_file, out_file, key)
 
             print("\nУспешно")
